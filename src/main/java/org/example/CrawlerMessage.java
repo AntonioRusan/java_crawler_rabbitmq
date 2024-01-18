@@ -5,7 +5,7 @@ import com.google.gson.annotations.SerializedName;
 
 public record CrawlerMessage(
         @SerializedName("order_id") String orderId,
-        @SerializedName("status") String status,
+        @SerializedName("status") OrderStatus status,
         @SerializedName("result") ProductItem result
 ) {
     private static final Gson gson = new Gson();
