@@ -15,12 +15,11 @@ import java.util.concurrent.TimeoutException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+
 public class Crawler {
     private static final String RABBITMQ_INPUT_QUEUE_KEY = "test_crawl_orders";
     private static final String RABBITMQ_OUTPUT_QUEUE_KEY = "test_crawl_results";
-
     private static final Logger logger = LoggerFactory.getLogger(Crawler.class);
-
     public static void main(String[] args) {
         try {
             Channel channel = getRabbitMQChannel();

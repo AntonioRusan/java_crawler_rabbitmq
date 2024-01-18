@@ -18,3 +18,9 @@ services:
       interval: 5s
       timeout: 15s
       retries: 5
+
+  javacrawler:
+    image: javacrawler
+    restart: on-failure
+    depends_on:
+      - rabbitmq
