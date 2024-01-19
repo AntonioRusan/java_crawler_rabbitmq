@@ -20,8 +20,9 @@ import java.util.regex.Pattern;
 
 
 public class Crawler {
-    private static final String RABBITMQ_INPUT_QUEUE_KEY = "test_crawl_orders";
-    private static final String RABBITMQ_OUTPUT_QUEUE_KEY = "test_crawl_results";
+    private static final String RABBITMQ_HOST = getEnvOrElse("RABBITMQ_HOST","amqp://guest:guest@rabbitmq:5672/%2F");
+    private static final String RABBITMQ_INPUT_QUEUE_KEY = getEnvOrElse("RABBITMQ_INPUT_QUEUE_KEY", "test_crawl_orders");
+    private static final String RABBITMQ_OUTPUT_QUEUE_KEY = getEnvOrElse("RABBITMQ_OUTPUT_QUEUE_KEY", "test_crawl_results");
     private static final Logger logger = LoggerFactory.getLogger(Crawler.class);
 
     public static void main(String[] args) {
@@ -36,6 +37,7 @@ public class Crawler {
             channel.basicConsume(RABBITMQ_INPUT_QUEUE_KEY, autoAck, deliverCallback, cancelCallback);
         } catch (Exception ex) {
             logger.error("Exception caught: " + ex.getMessage());
+            System.exit(1);
         }
 
     }
@@ -71,8 +73,7 @@ public class Crawler {
 
     private static @NotNull Channel getRabbitMQChannel() throws IOException, TimeoutException, URISyntaxException, NoSuchAlgorithmException, KeyManagementException {
         ConnectionFactory factory = new ConnectionFactory();
-        factory.setUri("amqp://guest:guest@rabbitmq:5672/%2F");
-        //factory.setVirtualHost("/");
+        factory.setUri(RABBITMQ_HOST);
         Connection connection = factory.newConnection();
         Channel channel = connection.createChannel();
         channel.basicQos(1);
@@ -129,5 +130,11 @@ public class Crawler {
         ProductItem productItem = getProductItem(page, url);
         return new CrawlerMessage(orderId, OrderStatus.Finished, productItem);
     }
+
+    private static String getEnvOrElse(@NotNull String envVariableName, String alternativeValue) {
+        String envValue = System.getProperty(envVariableName);
+        return envValue != null ? envValue : alternativeValue;
+    }
+
 }
 
