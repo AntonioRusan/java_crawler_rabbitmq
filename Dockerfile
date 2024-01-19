@@ -1,23 +1,24 @@
-#FROM openjdk:21
+#
+# Build stage
+#
+FROM maven:3.9.4-amazoncorretto-21-debian AS build
 
-#COPY target/java_crawler_rabbitmq-1.0-SNAPSHOT.jar app.jar
-#ENTRYPOINT ["java","-jar","/app.jar"]
-
-
-FROM maven:latest AS build
-# Set the working directory in the container
-WORKDIR /app
 # Copy the pom.xml and the project files to the container
-COPY pom.xml .
-COPY src ./src
-# Build the application using Maven
-RUN mvn clean package -DskipTests
+COPY pom.xml /home/app/pom.xml
+COPY src /home/app/src
 
+# Build the application using Maven
+RUN mvn -f /home/app/pom.xml clean package -DskipTests=true
+
+
+#
+# Package stage
+#
 # Use an official OpenJDK image as the base image
-FROM openjdk:11-jre-slim
-# Set the working directory in the container
-WORKDIR /app
+FROM amazoncorretto:21.0.1
+
+# Set the netrypoint to run the application
+ENTRYPOINT [ "java", "-jar", "/home/app/crawler.jar" ]
+
 # Copy the built JAR file from the previous stage to the container
-COPY target/java_crawler_rabbitmq-1.0-SNAPSHOT.jar app.jar
-# Set the command to run the application
-CMD ["java", "-jar", "app.jar"]
+COPY --from=build /home/app/target/rabbitmq-crawler-0.1.0-jar-with-dependencies.jar /home/app/crawler.jar

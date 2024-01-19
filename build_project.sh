@@ -1,5 +1,4 @@
 #!/bin/bash
 
 # Prepare Jar
-mvn clean
-mvn package
+mvn -f pom.xml clean package -DskipTests=true

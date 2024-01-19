@@ -8,7 +8,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
@@ -20,6 +23,7 @@ public class Crawler {
     private static final String RABBITMQ_INPUT_QUEUE_KEY = "test_crawl_orders";
     private static final String RABBITMQ_OUTPUT_QUEUE_KEY = "test_crawl_results";
     private static final Logger logger = LoggerFactory.getLogger(Crawler.class);
+
     public static void main(String[] args) {
         try {
             Channel channel = getRabbitMQChannel();
@@ -30,7 +34,7 @@ public class Crawler {
             boolean autoAck = false;
 
             channel.basicConsume(RABBITMQ_INPUT_QUEUE_KEY, autoAck, deliverCallback, cancelCallback);
-        } catch (IOException | TimeoutException ex) {
+        } catch (Exception ex) {
             logger.error("Exception caught: " + ex.getMessage());
         }
 
@@ -65,9 +69,10 @@ public class Crawler {
         };
     }
 
-    private static @NotNull Channel getRabbitMQChannel() throws IOException, TimeoutException {
+    private static @NotNull Channel getRabbitMQChannel() throws IOException, TimeoutException, URISyntaxException, NoSuchAlgorithmException, KeyManagementException {
         ConnectionFactory factory = new ConnectionFactory();
-        factory.setHost("localhost");
+        factory.setUri("amqp://guest:guest@rabbitmq:5672/%2F");
+        //factory.setVirtualHost("/");
         Connection connection = factory.newConnection();
         Channel channel = connection.createChannel();
         channel.basicQos(1);
@@ -114,9 +119,7 @@ public class Crawler {
             } else productId = null;
             String productName = page.querySelector("h5.card-title").asNormalizedText();
             return new ProductItem(productId, productName, url);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             throw ex;
         }
 
