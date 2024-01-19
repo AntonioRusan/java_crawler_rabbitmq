@@ -20,12 +20,15 @@ import java.util.regex.Pattern;
 
 
 public class Crawler {
-    private static final String RABBITMQ_HOST = getEnvOrElse("RABBITMQ_HOST","amqp://guest:guest@rabbitmq:5672/%2F");
-    private static final String RABBITMQ_INPUT_QUEUE_KEY = getEnvOrElse("RABBITMQ_INPUT_QUEUE_KEY", "test_crawl_orders");
-    private static final String RABBITMQ_OUTPUT_QUEUE_KEY = getEnvOrElse("RABBITMQ_OUTPUT_QUEUE_KEY", "test_crawl_results");
+    private final String RABBITMQ_HOST;
+    //= getEnvOrElse("RABBITMQ_HOST","amqp://guest:guest@rabbitmq:5672/%2F");
+    private final String RABBITMQ_INPUT_QUEUE_KEY;
+    //= getEnvOrElse("RABBITMQ_INPUT_QUEUE_KEY", "test_crawl_orders");
+    private final String RABBITMQ_OUTPUT_QUEUE_KEY;
+    //= getEnvOrElse("RABBITMQ_OUTPUT_QUEUE_KEY", "test_crawl_results");
     private static final Logger logger = LoggerFactory.getLogger(Crawler.class);
 
-    public static void main(String[] args) {
+    public void startCrawler() {
         try {
             Channel channel = getRabbitMQChannel();
             logger.info("Waiting for messages. To exit press CTRL+C");
@@ -39,10 +42,15 @@ public class Crawler {
             logger.error("Exception caught: " + ex.getMessage());
             System.exit(1);
         }
-
     }
 
-    private static DeliverCallback getDeliverCallback(Channel channel) {
+    public Crawler() {
+        RABBITMQ_HOST = getEnvOrElse("RABBITMQ_HOST", "amqp://guest:guest@rabbitmq:5672/%2F");
+        RABBITMQ_INPUT_QUEUE_KEY = getEnvOrElse("RABBITMQ_INPUT_QUEUE_KEY", "test_crawl_orders");
+        RABBITMQ_OUTPUT_QUEUE_KEY = getEnvOrElse("RABBITMQ_OUTPUT_QUEUE_KEY", "test_crawl_results");
+    }
+
+    private DeliverCallback getDeliverCallback(Channel channel) {
         return (consumerTag, delivery) -> {
             String message = new String(delivery.getBody(), StandardCharsets.UTF_8);
             Instruction instruction = Instruction.fromJson(message);
@@ -66,12 +74,12 @@ public class Crawler {
         };
     }
 
-    private static CancelCallback getCancelCallback() {
+    private CancelCallback getCancelCallback() {
         return consumerTag -> {
         };
     }
 
-    private static @NotNull Channel getRabbitMQChannel() throws IOException, TimeoutException, URISyntaxException, NoSuchAlgorithmException, KeyManagementException {
+    private @NotNull Channel getRabbitMQChannel() throws IOException, TimeoutException, URISyntaxException, NoSuchAlgorithmException, KeyManagementException {
         ConnectionFactory factory = new ConnectionFactory();
         factory.setUri(RABBITMQ_HOST);
         Connection connection = factory.newConnection();
@@ -86,7 +94,7 @@ public class Crawler {
         return channel;
     }
 
-    private static void publishToRabbitMQChannel(Channel channel, String queueKey, CrawlerMessage crawlerMessage) {
+    private void publishToRabbitMQChannel(Channel channel, String queueKey, CrawlerMessage crawlerMessage) {
         try {
             String crawlerMessageJson = crawlerMessage.toJson();
             channel.basicPublish("", queueKey, null, crawlerMessageJson.getBytes(StandardCharsets.UTF_8));
@@ -97,7 +105,7 @@ public class Crawler {
     }
 
 
-    private static HtmlPage getPage(String url) throws IOException {
+    private HtmlPage getPage(String url) throws IOException {
         HtmlPage page = null;
         try (final WebClient webClient = new WebClient()) {
             webClient.getOptions().setCssEnabled(false);
@@ -109,7 +117,7 @@ public class Crawler {
         return page;
     }
 
-    private static ProductItem getProductItem(HtmlPage page, String url) {
+    private ProductItem getProductItem(HtmlPage page, String url) {
         try {
             String productId = page.querySelector("h2").asNormalizedText();
 
@@ -126,13 +134,13 @@ public class Crawler {
 
     }
 
-    private static CrawlerMessage parsePage(HtmlPage page, String orderId, String url) {
+    private CrawlerMessage parsePage(HtmlPage page, String orderId, String url) {
         ProductItem productItem = getProductItem(page, url);
         return new CrawlerMessage(orderId, OrderStatus.Finished, productItem);
     }
 
-    private static String getEnvOrElse(@NotNull String envVariableName, String alternativeValue) {
-        String envValue = System.getProperty(envVariableName);
+    private String getEnvOrElse(@NotNull String envVariableName, String alternativeValue) {
+        String envValue = System.getenv(envVariableName);
         return envValue != null ? envValue : alternativeValue;
     }
 

@@ -92,7 +92,7 @@
                             <archive>
                                 <manifest>
                                     <mainClass>
-                                        org.example.Crawler
+                                        org.example.Main
                                     </mainClass>
                                 </manifest>
                             </archive>

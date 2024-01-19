@@ -21,11 +21,11 @@ services:
 
   javacrawler:
     image: javacrawler
-    restart: on-failure
+    restart: always
     environment:
       - RABBITMQ_HOST=amqp://guest:guest@rabbitmq:5672/%2F
-      - RABBITMQ_INPUT_QUEUE_KEY=test_crawl_orders
-      - RABBITMQ_OUTPUT_QUEUE_KEY=test_crawl_results
+      - RABBITMQ_INPUT_QUEUE_KEY=java_crawl_orders
+      - RABBITMQ_OUTPUT_QUEUE_KEY=java_crawl_results
     depends_on:
       #for docker-compose
       #- rabbitmq

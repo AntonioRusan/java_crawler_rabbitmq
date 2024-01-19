@@ -21,7 +21,7 @@ public class Publisher {
             channel.queueDeclare(QUEUE_NAME, true, false, false, arguments);
 
             for (int i = 1; i < 3; i++) {
-                Instruction instruction = new Instruction(1L, "https://demo-site.at.ispras.ru/product/" + i);
+                Instruction instruction = new Instruction((long) i, "https://demo-site.at.ispras.ru/product/" + i);
                 String instructionMessage = instruction.toJson();
                 channel.basicPublish("", QUEUE_NAME, null, instructionMessage.getBytes(StandardCharsets.UTF_8));
                 System.out.printf("Sent to %s: %s%n", QUEUE_NAME, instructionMessage);
