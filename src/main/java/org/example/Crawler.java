@@ -12,6 +12,7 @@ import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
@@ -37,7 +38,7 @@ public class Crawler {
 
             channel.basicConsume(RABBITMQ_INPUT_QUEUE_KEY, autoAck, deliverCallback, cancelCallback);
         } catch (Exception ex) {
-            logger.error("Exception caught: " + ex.getMessage());
+            logger.error("Exception caught: " + Arrays.toString(ex.getStackTrace()));
             System.exit(1);
         }
     }
