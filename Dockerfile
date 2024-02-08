@@ -17,7 +17,7 @@ RUN mvn -f /home/app/pom.xml clean package -DskipTests=true
 # Use an official OpenJDK image as the base image
 FROM amazoncorretto:21.0.1
 
-# Set the netrypoint to run the application
+# Set the entrypoint to run the application
 ENTRYPOINT [ "java", "-jar", "/home/app/crawler.jar" ]
 
 # Copy the built JAR file from the previous stage to the container

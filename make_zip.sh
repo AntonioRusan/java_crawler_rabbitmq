@@ -1,3 +1,3 @@
 #!/bin/bash
 
-zip java-crawler.zip src pom.xml Dockerfile
+zip -r java-crawler.zip src/ pom.xml Dockerfile
