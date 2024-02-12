@@ -1,24 +1,9 @@
-#
-# Build stage
-#
-FROM maven:3.9.4-amazoncorretto-21-debian AS build
+FROM openjdk:21
 
-# Copy the pom.xml and the project files to the container
-COPY pom.xml /home/app/pom.xml
-COPY src /home/app/src
-
-# Build the application using Maven
-RUN mvn -f /home/app/pom.xml clean package -DskipTests=true
+COPY java-rabbitmq-crawler-0.1.0-jar-with-dependencies.jar home/app/crawler.jar
 
 
-#
-# Package stage
-#
-# Use an official OpenJDK image as the base image
-FROM amazoncorretto:21.0.1
+ENTRYPOINT [ "java", "-jar", "/home/app/crawler.jar"]
 
-# Set the entrypoint to run the application
-ENTRYPOINT [ "java", "-jar", "/home/app/crawler.jar" ]
-
-# Copy the built JAR file from the previous stage to the container
-COPY --from=build /home/app/target/rabbitmq-crawler-0.1.0-jar-with-dependencies.jar /home/app/crawler.jar
+# Settings for rabbitmq, should be set in docker-compose.yaml or k8s yaml
+#CMD ["-s", "RABBITMQ_HOST=amqp://guest:guest@localhost:5672/%2F", "-s", "RABBITMQ_INPUT_QUEUE_KEY=java_crawl_orders", "-s", "RABBITMQ_OUTPUT_QUEUE_KEY=java_crawl_results"]

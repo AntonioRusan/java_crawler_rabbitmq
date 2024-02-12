@@ -21,9 +21,9 @@ import java.util.regex.Pattern;
 
 
 public class Crawler {
-    private final String RABBITMQ_HOST;
-    private final String RABBITMQ_INPUT_QUEUE_KEY;
-    private final String RABBITMQ_OUTPUT_QUEUE_KEY;
+    private final String RABBITMQ_HOST; //must be url like "amqp://guest:guest@localhost:5672/%2F"
+    private final String RABBITMQ_INPUT_QUEUE_KEY; //name of input queue
+    private final String RABBITMQ_OUTPUT_QUEUE_KEY; //name of output queue
 
     private static final Logger logger = LoggerFactory.getLogger(Crawler.class);
 
@@ -43,12 +43,10 @@ public class Crawler {
         }
     }
 
-    public Crawler() {
-        RABBITMQ_HOST = getEnvOrElse("RABBITMQ_HOST", "amqp://guest:guest@localhost:5672/%2F");
-
-        RABBITMQ_INPUT_QUEUE_KEY = getEnvOrElse("RABBITMQ_INPUT_QUEUE_KEY", "test_crawl_orders");
-
-        RABBITMQ_OUTPUT_QUEUE_KEY = getEnvOrElse("RABBITMQ_OUTPUT_QUEUE_KEY", "test_crawl_results");
+    public Crawler(Map<String, Object> argsToValueMap) {
+        RABBITMQ_HOST = (String) argsToValueMap.getOrDefault("RABBITMQ_HOST", "amqp://guest:guest@localhost:5672/%2F");
+        RABBITMQ_INPUT_QUEUE_KEY = (String) argsToValueMap.getOrDefault("RABBITMQ_INPUT_QUEUE_KEY", "java_crawl_orders");
+        RABBITMQ_OUTPUT_QUEUE_KEY = (String) argsToValueMap.getOrDefault("RABBITMQ_OUTPUT_QUEUE_KEY", "java_crawl_results");
     }
 
     private DeliverCallback getDeliverCallback(Channel channel) {
@@ -63,6 +61,7 @@ public class Crawler {
                 publishToRabbitMQChannel(channel, RABBITMQ_OUTPUT_QUEUE_KEY, new CrawlerMessage(instruction.orderId().toString(), OrderStatus.Running, null));
 
                 CrawlerMessage finishMessage = parsePage(page, instruction.orderId().toString(), instruction.url());
+                Thread.sleep(3000);
                 publishToRabbitMQChannel(channel, RABBITMQ_OUTPUT_QUEUE_KEY, finishMessage);
 
                 channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
@@ -76,7 +75,8 @@ public class Crawler {
     }
 
     private CancelCallback getCancelCallback() {
-        return consumerTag -> {};
+        return consumerTag -> {
+        };
     }
 
     private @NotNull Channel getRabbitMQChannel() throws IOException, TimeoutException, URISyntaxException, NoSuchAlgorithmException, KeyManagementException {
