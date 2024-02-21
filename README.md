@@ -10,16 +10,22 @@
 * парсит страничку;
 * пишет сообщения в виде json {'url','id','name'} в очередь **'java_crawl_results'**.
 
-### Сборка проекта
-Переменные для сборщика передаются в environment у javacrawler в dockerfile:
+## Сборка проекта
+### Сборка образа для docker-compose
+Используется файл
+Переменные для сборщика передаются в environment у javacrawler в Dockerfile:
 - `RABBITMQ_HOST=amqp://guest:guest@rabbitmq:5672/%2F` - ссылка для подключения к rabbitmq
 - `RABBITMQ_INPUT_QUEUE_KEY=java_crawl_orders` - очередь входных сообщений
 - `RABBITMQ_OUTPUT_QUEUE_KEY=java_crawl_results` - очередь сообщений результата работы сборщика
 
-Необходимо сбилдить docker образ сборщика командой ```docker build -t javacrawler .```
+Необходимо сбилдить docker образ сборщика командой ```docker build -f Dockerfile_build_image -t javacrawler .```
 
+### Упаковка проекта в архив для сборки в kaniko
+Чтобы упаковать jar сборщика и Dockerfile в архив надо:
+- запустить скрипт `build_project.sh` - соберёт проект в jar-with-dependencies.jar файл
+- выполнить скрипт `make_zip.sh` - упакует jar-файл и Dockerfile в zip архив
 
-### Тестирвание
+## Тестирвание
 
 Поднять сборщик и RabbitMQ: ```docker compose up -d```
 
