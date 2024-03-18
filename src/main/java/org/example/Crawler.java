@@ -3,6 +3,13 @@ package org.example;
 import com.gargoylesoftware.htmlunit.WebClient;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 import com.rabbitmq.client.*;
+import org.example.enums.OrderStatus;
+import org.example.models.Instruction;
+import org.example.models.KeyValue;
+import org.example.models.ProductItem;
+import org.example.models.message.CrawlerMessage;
+import org.example.models.message.CrawlerResultMessage;
+import org.example.models.message.CrawlerSubOrderMessage;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,16 +21,19 @@ import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 
 public class Crawler {
     private final String RABBITMQ_HOST; //must be url like "amqp://guest:guest@localhost:5672/%2F"
     private final String RABBITMQ_INPUT_QUEUE_KEY; //name of input queue
     private final String RABBITMQ_OUTPUT_QUEUE_KEY; //name of output queue
+    private final String RABBITMQ_SUB_ORDERS_QUEUE_KEY; //name of queue for sub orders
 
     private static final Logger logger = LoggerFactory.getLogger(Crawler.class);
 
@@ -47,6 +57,7 @@ public class Crawler {
         RABBITMQ_HOST = (String) argsToValueMap.getOrDefault("RABBITMQ_HOST", "amqp://guest:guest@localhost:5672/%2F");
         RABBITMQ_INPUT_QUEUE_KEY = (String) argsToValueMap.getOrDefault("RABBITMQ_INPUT_QUEUE_KEY", "java_crawl_orders");
         RABBITMQ_OUTPUT_QUEUE_KEY = (String) argsToValueMap.getOrDefault("RABBITMQ_OUTPUT_QUEUE_KEY", "java_crawl_results");
+        RABBITMQ_SUB_ORDERS_QUEUE_KEY = (String) argsToValueMap.getOrDefault("RABBITMQ_SUB_ORDERS_QUEUE_KEY", "java_crawl_sub_orders");
     }
 
     private DeliverCallback getDeliverCallback(Channel channel) {
@@ -56,18 +67,31 @@ public class Crawler {
             logger.info(String.format("Received from %s: %s%n", RABBITMQ_INPUT_QUEUE_KEY, message));
 
             try {
-                HtmlPage page = getPage(instruction.url());
+                Map<String, String> inputArgs = instruction.args().stream()
+                        .collect(Collectors.toMap(KeyValue::key, KeyValue::value));
+                String url = inputArgs.getOrDefault("url", "https://demo-site.at.ispras.ru/product/1");
+                Boolean hasSubRequests = Boolean.valueOf(inputArgs.getOrDefault("createSubRequests", "false"));
+                Long orderId = instruction.orderId();
 
-                publishToRabbitMQChannel(channel, RABBITMQ_OUTPUT_QUEUE_KEY, new CrawlerMessage(instruction.orderId().toString(), OrderStatus.Running, null));
+                HtmlPage page = getPage(url);
 
-                CrawlerMessage finishMessage = parsePage(page, instruction.orderId().toString(), instruction.url());
-                Thread.sleep(3000);
+                publishToRabbitMQChannel(channel, RABBITMQ_OUTPUT_QUEUE_KEY, new CrawlerResultMessage(orderId, OrderStatus.Running, null));
+
+                CrawlerResultMessage finishMessage = parsePage(page, orderId, url);
+
+                if (hasSubRequests) {
+                    List<KeyValue> subArgs = List.of(
+                            new KeyValue("url", "https://demo-site.at.ispras.ru/product/55"),
+                            new KeyValue("createSubRequests", "false")
+                    );
+                    publishToRabbitMQChannel(channel, RABBITMQ_SUB_ORDERS_QUEUE_KEY, new CrawlerSubOrderMessage(orderId, subArgs));
+                }
                 publishToRabbitMQChannel(channel, RABBITMQ_OUTPUT_QUEUE_KEY, finishMessage);
 
                 channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
             } catch (Exception ex) {
                 logger.error("Exception while handling input message: " + ex.getMessage());
-                publishToRabbitMQChannel(channel, RABBITMQ_OUTPUT_QUEUE_KEY, new CrawlerMessage(instruction.orderId().toString(), OrderStatus.Error, null));
+                publishToRabbitMQChannel(channel, RABBITMQ_OUTPUT_QUEUE_KEY, new CrawlerResultMessage(instruction.orderId(), OrderStatus.Error, null));
                 channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
             }
 
@@ -94,6 +118,7 @@ public class Crawler {
 
         channel.queueDeclare(RABBITMQ_INPUT_QUEUE_KEY, durable, false, false, queueArguments);
         channel.queueDeclare(RABBITMQ_OUTPUT_QUEUE_KEY, durable, false, false, queueArguments);
+        channel.queueDeclare(RABBITMQ_SUB_ORDERS_QUEUE_KEY, durable, false, false, queueArguments);
 
         return channel;
     }
@@ -110,7 +135,7 @@ public class Crawler {
 
 
     private HtmlPage getPage(String url) throws IOException {
-        HtmlPage page = null;
+        HtmlPage page;
         try (final WebClient webClient = new WebClient()) {
             webClient.getOptions().setCssEnabled(false);
             webClient.getOptions().setJavaScriptEnabled(false);
@@ -123,8 +148,8 @@ public class Crawler {
 
     private ProductItem getProductItem(HtmlPage page, String url) {
         try {
+            Thread.sleep(15000);
             String productId = page.querySelector("h2").asNormalizedText();
-
             Pattern pattern = Pattern.compile("^Товар #(\\d+)$");
             Matcher matcher = pattern.matcher(productId);
             if (matcher.matches()) {
@@ -133,14 +158,14 @@ public class Crawler {
             String productName = page.querySelector("h5.card-title").asNormalizedText();
             return new ProductItem(productId, productName, url);
         } catch (Exception ex) {
-            throw ex;
+            throw new RuntimeException(ex);
         }
 
     }
 
-    private CrawlerMessage parsePage(HtmlPage page, String orderId, String url) {
+    private CrawlerResultMessage parsePage(HtmlPage page, Long orderId, String url) {
         ProductItem productItem = getProductItem(page, url);
-        return new CrawlerMessage(orderId, OrderStatus.Finished, productItem);
+        return new CrawlerResultMessage(orderId, OrderStatus.Finished, productItem);
     }
 
     private String getEnvOrElse(@NotNull String envVariableName, String alternativeValue) {
