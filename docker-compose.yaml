@@ -22,7 +22,7 @@ services:
   javacrawler:
     image: javacrawler
     restart: always
-    command: -s RABBITMQ_HOST=amqp://guest:guest@rabbitmq:5672/%2F -s RABBITMQ_INPUT_QUEUE_KEY=java_crawl_orders -s RABBITMQ_OUTPUT_QUEUE_KEY=java_crawl_results
+    command: -s RABBITMQ_HOST=amqp://guest:guest@rabbitmq:5672/%2F -s RABBITMQ_INPUT_QUEUE_KEY=java_crawl_orders -s RABBITMQ_OUTPUT_QUEUE_KEY=java_crawl_results -s RABBITMQ_SUB_ORDERS_QUEUE_KEY=java_crawl_sub_orders
     depends_on:
       #for docker-compose
       #- rabbitmq
