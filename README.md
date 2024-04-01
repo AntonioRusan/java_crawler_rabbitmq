@@ -7,9 +7,9 @@
 
 Тестовый сборщик **Crawler**:
 
-* использует очередь **'java_crawl_orders'** для получения url вида https://demo-site.at.ispras.ru/product/{id};
+* использует очередь **'java_crawl_requests'** для получения url вида https://demo-site.at.ispras.ru/product/{id};
 * парсит страничку;
-* если есть подзапросы, то отправляет их в очередь **'java_crawl_sub_orders'**;
+* если есть подзапросы, то отправляет их в очередь **'java_crawl_sub_requests'**;
 * пишет сообщения в формате json в очередь **'java_crawl_results'**.
 
 ## Сборка проекта
@@ -20,9 +20,9 @@
 Переменные для сборщика передаются в environment у javacrawler в Dockerfile:
 
 - `RABBITMQ_HOST=amqp://guest:guest@rabbitmq:5672/%2F` - ссылка для подключения к rabbitmq
-- `RABBITMQ_INPUT_QUEUE_KEY=java_crawl_orders` - очередь входных сообщений
-- `RABBITMQ_OUTPUT_QUEUE_KEY=java_crawl_results` - очередь сообщений результата работы сборщика
-- `RABBITMQ_SUB_ORDERS_QUEUE_KEY=java_crawl_sub_orders` - очередь выходных сообщений для подзаявок
+- `RABBITMQ_INPUT_CRAWL_REQUEST_QUEUE_KEY=java_crawl_requests` - очередь входных сообщений
+- `RABBITMQ_OUTPUT_RESULT_QUEUE_KEY=java_crawl_results` - очередь сообщений результата работы сборщика
+- `RABBITMQ_OUTPUT_CRAWL_REQUEST_QUEUE_KEY=java_crawl_sub_requests` - очередь выходных сообщений для подзаявок
 
 Необходимо сбилдить docker образ сборщика командой ```docker build -f Dockerfile_build_image -t javacrawler .```
 
@@ -91,4 +91,4 @@
 
 Интерфейс RabbitMQ доступен по адресу: http://127.0.0.1:15672/
 
-Для того, чтобы положить ссылки в очередь **'java_crawl_orders'** надо выполнить метод **main** в **Publisher**
+Для того, чтобы положить ссылки в очередь **'java_crawl_requests'** надо выполнить метод **main** в **Publisher**
