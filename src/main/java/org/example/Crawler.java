@@ -31,7 +31,7 @@ import java.util.stream.Collectors;
 public class Crawler {
     private final String RABBITMQ_HOST; //must be url like "amqp://guest:guest@localhost:5672/%2F"
     private final String RABBITMQ_INPUT_CRAWL_REQUEST_QUEUE_KEY; //name of input queue
-    private final String RABBITMQ_OUTPUT_RESULT_QUEUE_KEY; //name of output queue
+    private final String RABBITMQ_OUTPUT_CRAWL_RESULT_QUEUE_KEY; //name of output queue
     private final String RABBITMQ_OUTPUT_CRAWL_REQUEST_QUEUE_KEY; //name of queue for sub requests
 
     private static final Logger logger = LoggerFactory.getLogger(Crawler.class);
@@ -54,9 +54,9 @@ public class Crawler {
 
     public Crawler(Map<String, Object> argsToValueMap) {
         RABBITMQ_HOST = (String) argsToValueMap.getOrDefault("RABBITMQ_HOST", "amqp://guest:guest@localhost:5672/%2F");
-        RABBITMQ_INPUT_CRAWL_REQUEST_QUEUE_KEY = (String) argsToValueMap.getOrDefault("RABBITMQ_INPUT_CRAWL_REQUEST_QUEUE_KEY", "java_crawl_requests");
-        RABBITMQ_OUTPUT_RESULT_QUEUE_KEY = (String) argsToValueMap.getOrDefault("RABBITMQ_OUTPUT_RESULT_QUEUE_KEY", "java_crawl_results");
-        RABBITMQ_OUTPUT_CRAWL_REQUEST_QUEUE_KEY = (String) argsToValueMap.getOrDefault("RABBITMQ_OUTPUT_CRAWL_REQUEST_QUEUE_KEY", "java_crawl_sub_requests");
+        RABBITMQ_INPUT_CRAWL_REQUEST_QUEUE_KEY = (String) argsToValueMap.getOrDefault("RABBITMQ_INPUT_CRAWL_REQUEST_QUEUE_KEY", "java_input_crawl_requests");
+        RABBITMQ_OUTPUT_CRAWL_RESULT_QUEUE_KEY = (String) argsToValueMap.getOrDefault("RABBITMQ_OUTPUT_CRAWL_RESULT_QUEUE_KEY", "java_output_crawl_results");
+        RABBITMQ_OUTPUT_CRAWL_REQUEST_QUEUE_KEY = (String) argsToValueMap.getOrDefault("RABBITMQ_OUTPUT_CRAWL_REQUEST_QUEUE_KEY", "java_output_crawl_requests");
     }
 
     private DeliverCallback getDeliverCallback(Channel channel) {
@@ -77,7 +77,7 @@ public class Crawler {
 
                 publishToRabbitMQChannel(
                         channel,
-                        RABBITMQ_OUTPUT_RESULT_QUEUE_KEY,
+                        RABBITMQ_OUTPUT_CRAWL_RESULT_QUEUE_KEY,
                         new CrawlerResultMessage(crawlRequestId, orderId, OrderStatus.Running, null)
                 );
 
@@ -93,14 +93,14 @@ public class Crawler {
                             RABBITMQ_OUTPUT_CRAWL_REQUEST_QUEUE_KEY,
                             new CrawlRequestMessage(crawlRequestId, orderId, subArgs));
                 }
-                publishToRabbitMQChannel(channel, RABBITMQ_OUTPUT_RESULT_QUEUE_KEY, finishMessage);
+                publishToRabbitMQChannel(channel, RABBITMQ_OUTPUT_CRAWL_RESULT_QUEUE_KEY, finishMessage);
 
                 channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
             } catch (Exception ex) {
                 logger.error("Exception while handling input message: " + ex.getMessage());
                 publishToRabbitMQChannel(
                         channel,
-                        RABBITMQ_OUTPUT_RESULT_QUEUE_KEY,
+                        RABBITMQ_OUTPUT_CRAWL_RESULT_QUEUE_KEY,
                         new CrawlerResultMessage(
                                 crawlRequest.crawlRequestId(),
                                 crawlRequest.orderId(),
@@ -133,7 +133,7 @@ public class Crawler {
         boolean durable = true;
 
         channel.queueDeclare(RABBITMQ_INPUT_CRAWL_REQUEST_QUEUE_KEY, durable, false, false, queueArguments);
-        channel.queueDeclare(RABBITMQ_OUTPUT_RESULT_QUEUE_KEY, durable, false, false, queueArguments);
+        channel.queueDeclare(RABBITMQ_OUTPUT_CRAWL_RESULT_QUEUE_KEY, durable, false, false, queueArguments);
         channel.queueDeclare(RABBITMQ_OUTPUT_CRAWL_REQUEST_QUEUE_KEY, durable, false, false, queueArguments);
 
         return channel;
