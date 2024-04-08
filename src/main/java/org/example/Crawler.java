@@ -164,7 +164,6 @@ public class Crawler {
 
     private ProductItem getProductItem(HtmlPage page, String url) {
         try {
-            Thread.sleep(15000);
             String productId = page.querySelector("h2").asNormalizedText();
             Pattern pattern = Pattern.compile("^Товар #(\\d+)$");
             Matcher matcher = pattern.matcher(productId);
