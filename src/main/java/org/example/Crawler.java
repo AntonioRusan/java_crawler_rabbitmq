@@ -18,10 +18,7 @@ import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.TimeoutException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -69,7 +66,8 @@ public class Crawler {
                 Map<String, String> inputArgs = crawlRequest.args().stream()
                         .collect(Collectors.toMap(KeyValue::key, KeyValue::value));
                 String url = inputArgs.getOrDefault("url", "https://demo-site.at.ispras.ru/product/1");
-                Boolean hasSubRequests = Boolean.valueOf(inputArgs.getOrDefault("createSubRequests", "false"));
+                Long numOfSubRequests = Long.valueOf(inputArgs.getOrDefault("numOfSubRequests", "0"));
+                Long numOfSubSubRequests = Long.valueOf(inputArgs.getOrDefault("numOfSubSubRequests", "0"));
                 Long orderId = crawlRequest.orderId();
                 Long crawlRequestId = crawlRequest.crawlRequestId();
 
@@ -82,11 +80,12 @@ public class Crawler {
                 );
 
                 CrawlerResultMessage finishMessage = parsePage(page, crawlRequestId, orderId, url);
-
-                if (hasSubRequests) {
+                Random r = new Random();
+                for (int i = 0; i < numOfSubRequests; i++) {
+                    int pageId = r.nextInt(55) + 1;
                     List<KeyValue> subArgs = List.of(
-                            new KeyValue("url", "https://demo-site.at.ispras.ru/product/55"),
-                            new KeyValue("createSubRequests", "false")
+                            new KeyValue("url", String.format("https://demo-site.at.ispras.ru/product/%d", pageId)),
+                            new KeyValue("numOfSubRequests", numOfSubSubRequests.toString())
                     );
                     publishToRabbitMQChannel(
                             channel,
