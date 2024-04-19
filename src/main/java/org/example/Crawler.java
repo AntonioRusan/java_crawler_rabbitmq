@@ -76,11 +76,12 @@ public class Crawler {
                 publishToRabbitMQChannel(
                         channel,
                         RABBITMQ_OUTPUT_CRAWL_RESULT_QUEUE_KEY,
-                        new CrawlerResultMessage(crawlRequestId, orderId, OrderStatus.Running, null)
+                        new CrawlerResultMessage(crawlRequestId, orderId, OrderStatus.Running, 0L, null)
                 );
 
-                CrawlerResultMessage finishMessage = parsePage(page, crawlRequestId, orderId, url);
+
                 Random r = new Random();
+                Long requestsCreated = 0L;
                 for (int i = 0; i < numOfSubRequests; i++) {
                     int pageId = r.nextInt(55) + 1;
                     List<KeyValue> subArgs = List.of(
@@ -91,7 +92,9 @@ public class Crawler {
                             channel,
                             RABBITMQ_OUTPUT_CRAWL_REQUEST_QUEUE_KEY,
                             new CrawlRequestMessage(crawlRequestId, orderId, subArgs));
+                    requestsCreated++;
                 }
+                CrawlerResultMessage finishMessage = parsePage(page, crawlRequestId, orderId, url, requestsCreated);
                 publishToRabbitMQChannel(channel, RABBITMQ_OUTPUT_CRAWL_RESULT_QUEUE_KEY, finishMessage);
 
                 channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
@@ -104,6 +107,7 @@ public class Crawler {
                                 crawlRequest.crawlRequestId(),
                                 crawlRequest.orderId(),
                                 OrderStatus.Error,
+                                0L,
                                 null
                         )
                 );
@@ -177,9 +181,9 @@ public class Crawler {
 
     }
 
-    private CrawlerResultMessage parsePage(HtmlPage page, Long crawlRequestId, Long orderId, String url) {
+    private CrawlerResultMessage parsePage(HtmlPage page, Long crawlRequestId, Long orderId, String url, Long requestsCreated) {
         ProductItem productItem = getProductItem(page, url);
-        return new CrawlerResultMessage(crawlRequestId, orderId, OrderStatus.Finished, productItem);
+        return new CrawlerResultMessage(crawlRequestId, orderId, OrderStatus.Finished, requestsCreated, productItem);
     }
 
     private String getEnvOrElse(@NotNull String envVariableName, String alternativeValue) {

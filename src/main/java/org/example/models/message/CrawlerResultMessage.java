@@ -9,6 +9,7 @@ public record CrawlerResultMessage(
         @SerializedName("crawl_request_id") @NotNull Long crawlRequestId,
         @SerializedName("order_id") Long orderId,
         @SerializedName("status") OrderStatus status,
+        @SerializedName("crawl_requests_created") Long crawlRequestsCreated,
         @SerializedName("result") ProductItem result
 ) implements CrawlerMessage {
     public static CrawlerResultMessage fromJson(String json) {
