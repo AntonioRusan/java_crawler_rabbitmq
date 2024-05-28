@@ -46,8 +46,20 @@
       "value": "https://demo-site.at.ispras.ru/product/13"
     },
     {
-      "key": "createSubRequests",
-      "value": "true"
+      "key":"numOfSubRequests",
+      "value":"2"
+    },
+    {
+      "key":"numOfSubSubRequests",
+      "value":"2"
+    },
+    {
+      "key":"hasError",
+      "value":"false"
+    },
+    {
+      "key":"subRequestHasError",
+      "value":"true"
     }
   ]
 }
