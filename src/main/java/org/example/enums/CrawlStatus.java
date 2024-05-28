@@ -1,6 +1,6 @@
-package org.example;
+package org.example.enums;
 
-public enum OrderStatus {
+public enum CrawlStatus {
     Pending,
     Running,
     Finished,
