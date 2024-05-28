@@ -3,7 +3,7 @@ package org.example;
 import com.gargoylesoftware.htmlunit.WebClient;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 import com.rabbitmq.client.*;
-import org.example.enums.OrderStatus;
+import org.example.enums.CrawlStatus;
 import org.example.models.KeyValue;
 import org.example.models.ProductItem;
 import org.example.models.message.CrawlRequestMessage;
@@ -68,6 +68,8 @@ public class Crawler {
                 String url = inputArgs.getOrDefault("url", "https://demo-site.at.ispras.ru/product/1");
                 Long numOfSubRequests = Long.valueOf(inputArgs.getOrDefault("numOfSubRequests", "0"));
                 Long numOfSubSubRequests = Long.valueOf(inputArgs.getOrDefault("numOfSubSubRequests", "0"));
+                boolean hasError = Boolean.parseBoolean(inputArgs.getOrDefault("hasError", "false"));
+                boolean subRequestHasError = Boolean.parseBoolean(inputArgs.getOrDefault("subRequestHasError", "false"));
                 Long orderId = crawlRequest.orderId();
                 Long crawlRequestId = crawlRequest.crawlRequestId();
 
@@ -76,26 +78,35 @@ public class Crawler {
                 publishToRabbitMQChannel(
                         channel,
                         RABBITMQ_OUTPUT_CRAWL_RESULT_QUEUE_KEY,
-                        new CrawlerResultMessage(crawlRequestId, orderId, OrderStatus.Running, 0L, null)
+                        new CrawlerResultMessage(crawlRequestId, orderId, CrawlStatus.Running, 0L, null)
                 );
 
-
+                boolean subRequestErrorNotAdded = true;
                 Random r = new Random();
                 Long requestsCreated = 0L;
                 for (int i = 0; i < numOfSubRequests; i++) {
                     int pageId = r.nextInt(55) + 1;
-                    List<KeyValue> subArgs = List.of(
-                            new KeyValue("url", String.format("https://demo-site.at.ispras.ru/product/%d", pageId)),
-                            new KeyValue("numOfSubRequests", numOfSubSubRequests.toString())
-                    );
+                    List<KeyValue> subArgs = new ArrayList<>() {{
+                        add(new KeyValue("url", String.format("https://demo-site.at.ispras.ru/product/%d", pageId)));
+                        add(new KeyValue("numOfSubRequests", numOfSubSubRequests.toString()));
+                    }};
+                    if (subRequestHasError && subRequestErrorNotAdded) {
+                        subArgs.add(new KeyValue("hasError", "true"));
+                        subRequestErrorNotAdded = false;
+                    }
                     publishToRabbitMQChannel(
                             channel,
                             RABBITMQ_OUTPUT_CRAWL_REQUEST_QUEUE_KEY,
                             new CrawlRequestMessage(crawlRequestId, orderId, subArgs));
                     requestsCreated++;
                 }
-                CrawlerResultMessage finishMessage = parsePage(page, crawlRequestId, orderId, url, requestsCreated);
-                publishToRabbitMQChannel(channel, RABBITMQ_OUTPUT_CRAWL_RESULT_QUEUE_KEY, finishMessage);
+                if (hasError) {
+                    CrawlerResultMessage errorMessage = new CrawlerResultMessage(crawlRequestId, orderId, CrawlStatus.Error, requestsCreated, null);
+                    publishToRabbitMQChannel(channel, RABBITMQ_OUTPUT_CRAWL_RESULT_QUEUE_KEY, errorMessage);
+                } else {
+                    CrawlerResultMessage finishMessage = parsePage(page, crawlRequestId, orderId, url, requestsCreated);
+                    publishToRabbitMQChannel(channel, RABBITMQ_OUTPUT_CRAWL_RESULT_QUEUE_KEY, finishMessage);
+                }
 
                 channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
             } catch (Exception ex) {
@@ -106,7 +117,7 @@ public class Crawler {
                         new CrawlerResultMessage(
                                 crawlRequest.crawlRequestId(),
                                 crawlRequest.orderId(),
-                                OrderStatus.Error,
+                                CrawlStatus.Error,
                                 0L,
                                 null
                         )
@@ -153,7 +164,7 @@ public class Crawler {
     }
 
 
-    private HtmlPage getPage(String url) throws IOException {
+    private HtmlPage getPage(String url) throws IOException, InterruptedException {
         HtmlPage page;
         try (final WebClient webClient = new WebClient()) {
             webClient.getOptions().setCssEnabled(false);
@@ -162,6 +173,9 @@ public class Crawler {
         } catch (IOException ex) {
             throw ex;
         }
+        Random r = new Random();
+        int delay = r.nextInt(500 - 50) + 50;
+        Thread.sleep(delay);
         return page;
     }
 
@@ -183,7 +197,7 @@ public class Crawler {
 
     private CrawlerResultMessage parsePage(HtmlPage page, Long crawlRequestId, Long orderId, String url, Long requestsCreated) {
         ProductItem productItem = getProductItem(page, url);
-        return new CrawlerResultMessage(crawlRequestId, orderId, OrderStatus.Finished, requestsCreated, productItem);
+        return new CrawlerResultMessage(crawlRequestId, orderId, CrawlStatus.Finished, requestsCreated, productItem);
     }
 
     private String getEnvOrElse(@NotNull String envVariableName, String alternativeValue) {
